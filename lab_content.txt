@@ -1,0 +1,287 @@
+LAB | Different Ways to Chunk Podcast and PDF Lab
+
+
+
+
+
+
+
+
+
+Scenario You're working on a RAG system for a client who wants to query information from both a podcast transcript about Trustworthy AI and a PDF document on the same topic. Different content types require different chunking strategies, and you need to explore multiple approaches to find the optimal solution.
+
+Learning Objectives
+
+ Implement multiple chunking strategies (fixed-size, semantic, recursive character)
+ Compare chunking approaches for audio transcripts vs PDF documents
+ Understand how chunk size and overlap affect retrieval quality
+ Evaluate chunking results visually and quantitatively
+ Make informed recommendations about chunking strategies for different content types
+Estimated Time: 90-120 minutes
+
+Prerequisites:
+
+ Basic understanding of RAG concepts
+ Familiarity with Python and Jupyter notebooks
+ Knowledge of text processing libraries
+Introduction
+Chunking is a critical step in building effective RAG systems. The way you split documents directly impacts retrieval quality, context preservation, and overall system performance. This lab explores different chunking strategies using real-world content: a Trustworthy AI podcast transcript and a Trustworthy AI PDF document.
+
+Why this matters:
+
+Podcast transcripts have natural conversation flow and pauses
+PDFs have structured sections, headers, and formatting
+Different chunking strategies preserve different types of context
+Choosing the wrong strategy can break semantic meaning
+Success criteria:
+
+ Successfully chunk both podcast and PDF using at least 2 different strategies
+ Visualize and compare chunk characteristics (size, overlap, boundaries)
+ Document trade-offs between strategies
+ Make a recommendation for each content type
+Reference Materials
+Content Sources:
+
+Trustworthy AI Podcast (to be provided by the TA)
+Trustworthy AI PDF (to be provided by the TA)
+Documentation:
+
+LangChain Text Splitters
+ChunkViz - Visualize chunking strategies
+RecursiveCharacterTextSplitter Documentation
+Step-by-Step Instructions
+Step 1: Setup and Data Loading
+Objective: Set up your environment and load both content sources.
+
+What to do:
+
+Create a new Jupyter notebook:
+chunking_strategies.ipynb
+Install required packages:
+!pip install langchain langchain-community pypdf2 python-dotenv openai tiktoken
+
+Copy
+
+Explain
+Load environment variables for API keys if needed
+Load the podcast audio file
+Transcribe the audio file (save it to a local file)
+Load the PDF document (from URL or local file)
+Expected first output: package installation completes with no errors and your notebook can import the required text splitter classes.
+
+Step 2: Implement Fixed-Size Chunking
+Objective: Create fixed-size chunks for both documents.
+
+What to do:
+
+Use
+CharacterTextSplitter
+with fixed chunk size
+Experiment with different sizes: 500, 1000, 2000 characters
+Try different overlap values: 0, 50, 100 characters
+Compare results between podcast and PDF
+Analysis questions:
+
+Does fixed-size chunking break sentences in the middle?
+How does it handle paragraph boundaries?
+Which content type handles fixed-size chunking better?
+Step 3: Implement Recursive Character Chunking
+Objective: Use recursive character splitting, which tries to preserve semantic boundaries.
+
+What to do:
+
+Use
+RecursiveCharacterTextSplitter
+(recommended by LangChain)
+Experiment with chunk sizes: 500, 1000, 2000 tokens
+Try different separators priority
+Compare with fixed-size results
+Code template:
+
+# Recursive character chunking (tries to split on paragraphs, then sentences, then words)
+recursive_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200,
+    length_function=len,
+    separators=["\n\n", "\n", ". ", " ", ""]
+)
+ 
+pdf_chunks_recursive = recursive_splitter.split_text(pdf_text)
+podcast_chunks_recursive = recursive_splitter.split_text(podcast_text)
+ 
+
+Copy
+
+Explain
+Analysis questions:
+
+Does recursive chunking preserve sentence boundaries better?
+How does it handle the podcast's conversational structure?
+Does it respect PDF section headers?
+Step 4: Implement Token-Based Chunking
+Objective: Chunk based on token count (more accurate for LLM context windows).
+
+What to do:
+
+Use
+TokenTextSplitter
+or calculate tokens manually
+Chunk to specific token counts (e.g., 500, 1000 tokens)
+Compare token-based vs character-based chunking
+Code template:
+
+# Token-based chunking
+token_splitter = TokenTextSplitter(
+    chunk_size=500,
+    chunk_overlap=50
+)
+ 
+pdf_chunks_tokens = token_splitter.split_text(pdf_text)
+podcast_chunks_tokens = token_splitter.split_text(podcast_text)
+ 
+print(f"PDF: {len(pdf_chunks_tokens)} chunks")
+print(f"Podcast: {len(podcast_chunks_tokens)} chunks")
+ 
+# Compare actual token counts - IMPORTANT!
+import tiktoken
+encoding = tiktoken.get_encoding("cl100k_base")
+ 
+for i, chunk in enumerate(pdf_chunks_tokens[:3]):
+    token_count = len(encoding.encode(chunk))
+    print(f"Chunk {i+1}: {token_count} tokens, {len(chunk)} characters")
+
+Copy
+
+Explain
+Step 5: Semantic Chunking (Optional - Advanced)
+Note: this should be run on Colab for maximum compatibility.
+
+Objective: Explore semantic chunking that splits based on meaning rather than size.
+
+What to do:
+
+Use sentence transformers to find semantic boundaries
+Split when semantic similarity drops significantly
+Compare with size-based approaches
+Code template:
+
+# Semantic chunking (optional advanced approach)
+from sentence_transformers import SentenceTransformer
+import numpy as np
+ 
+model = SentenceTransformer('all-MiniLM-L6-v2')
+ 
+def semantic_chunk(text, threshold=0.7):
+    """Split text based on semantic similarity between sentences"""
+    sentences = text.split('. ')
+    if len(sentences) < 2:
+        return [text]
+    
+    embeddings = model.encode(sentences)
+    chunks = []
+    current_chunk = [sentences[0]]
+    
+    for i in range(1, len(sentences)):
+        similarity = np.dot(embeddings[i-1], embeddings[i])
+        if similarity < threshold:
+            chunks.append('. '.join(current_chunk))
+            current_chunk = [sentences[i]]
+        else:
+            current_chunk.append(sentences[i])
+    
+    if current_chunk:
+        chunks.append('. '.join(current_chunk))
+    
+    return chunks
+ 
+# TIP: Apply to a sample (semantic chunking can be slow on large texts)
+pdf_sample = pdf_text[:5000]  # First 5000 chars
+pdf_chunks_semantic = semantic_chunk(pdf_sample)
+print(f"Semantic chunks from sample: {len(pdf_chunks_semantic)}")
+
+Copy
+
+Explain
+Step 6: Visualize and Compare Results
+Objective: Create visualizations to compare chunking strategies.
+
+What to do:
+
+Create a comparison table of chunk statistics
+Visualize chunk size distributions
+Identify where chunks break (sentence boundaries, paragraphs, etc.)
+Document trade-offs
+Step 7: Analyze Chunk Quality
+Objective: Evaluate chunk quality by checking boundary preservation.
+
+What to do:
+
+Check how often chunks break in the middle of sentences
+Check how often chunks break in the middle of paragraphs
+Identify which strategy preserves context best
+Step 8: Make Recommendations
+Objective: Document your findings and make recommendations.
+
+What to do:
+
+Create a summary table comparing strategies
+Write recommendations for each content type
+Explain trade-offs and when to use each approach
+Deliverable template:
+
+## Chunking Strategy Recommendations
+ 
+### For PDF Documents:
+**Recommended Strategy:** [Your choice]
+**Reasoning:**
+- [Why this works best for PDFs]
+- [Key advantages]
+- [Optimal chunk size and overlap]
+ 
+### For Podcast Transcripts:
+**Recommended Strategy:** [Your choice]
+**Reasoning:**
+- [Why this works best for transcripts]
+- [Key advantages]
+- [Optimal chunk size and overlap]
+ 
+### Trade-offs Summary:
+| Strategy | Pros | Cons | Best For |
+|----------|------|------|----------|
+| Fixed-Size | Simple, predictable | Breaks context | Uniform content |
+| Recursive | Preserves structure | More complex | Structured docs |
+| Token-Based | Accurate for LLMs | Requires tokenizer | LLM integration |
+| Semantic | Meaning-based | Computationally expensive | Complex content |
+
+Copy
+
+Explain
+Submission Guidelines
+Submission hygiene
+Filenames: Use clear, descriptive names (avoid vague names such as lab.ipynb, final_v2.py, or untitled.md).
+Scope: Your GitHub repository must contain only materials for this lab—no unrelated projects, dumps, or personal files.
+README: Include a README.md with how to run your work (when applicable) and a clear map of each file/folder. Any required short narrative paragraph must live in lab_summary.md at the repository root—not in README.md.
+GitHub only: Submit the URL to a GitHub repository that contains everything for this lab (Markdown, code, exports, images, decks). Do not submit a standalone Google Doc, Notion page, or cloud-only link as your primary deliverable—put sources or exports (for example .md, .pdf, .pptx, screenshots) in the repository.
+
+What to submit:
+
+Your Jupyter notebook with all code and results, including comparison tables, optional visualization charts, and boundary analysis outputs.
+lab_summary.md
+at the repository root containing
+one short paragraph
+summarizing final recommendations for PDF vs podcast and the main trade-offs. Put detailed tables and plots in the notebook—do not submit a separate long narrative document.
+Success criteria:
+
+ Successfully implemented at least 2 chunking strategies
+ Compared strategies for both PDF and podcast
+ Created visualizations showing differences
+ Made clear recommendations with reasoning (in the notebook evidence and in lab_summary.md)
+ Code is well-commented and organized
+Extension Activities (Optional)
+Test with actual RAG retrieval:
+Embed chunks and test retrieval quality
+Experiment with overlap:
+Find optimal overlap percentage for each strategy
+Hybrid approach:
+Combine multiple strategies (e.g., semantic boundaries with size limits)
+Metadata preservation:
